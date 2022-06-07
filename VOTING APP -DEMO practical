@@ -1,0 +1,89 @@
+Assignment : VOTING APP -DEMO practical
+Steps
+1. go to root (cd /root/ ) 
+  [ec2-user@ip-172-31-28-253 ~]$ sudo su root
+  [root@ip-172-31-28-253 ec2-user]# ls
+  example-voting-app  istio-1.5.2  istio-1.5.2-linux.tar.gz
+
+2. git clone https://github.com/ashishrpandey/example-voting-app
+
+  [root@ip-172-31-28-253 ec2-user]# cd example-voting-app/
+  [root@ip-172-31-28-253 example-voting-app]# ls
+  architecture.png               docker-compose.yml  MAINTAINERS  worker
+  dockercloud.yml                docker-stack.yml    README.md
+  docker-compose-javaworker.yml  k8s-specifications  result
+  docker-compose-simple.yml      LICENSE             vote
+
+3. go to /root/example-voting-app/k8s-specifications
+
+  [root@ip-172-31-28-253 example-voting-app]# cd k8s-specifications/
+  [root@ip-172-31-28-253 k8s-specifications]# ls
+  db-deployment.yaml     redis-service.yaml      vote-deployment.yaml
+  db-service.yaml        result-deployment.yaml  vote-service.yaml
+  redis-deployment.yaml  result-service.yaml     worker-deployment.yaml
+
+
+4. [root@ip-172-31-28-253 k8s-specifications]# kubectl apply -f .
+
+deployment.apps/db created
+service/db created
+deployment.apps/redis created
+service/redis created
+deployment.apps/result created
+service/result created
+deployment.apps/vote created
+service/vote created
+deployment.apps/worker created
+
+
+5. for voting and result pods, Observe that NodePort is assigned.
+--> voting : 31000
+resulr : 31001
+
+
+6. take your publicIP (your instance IP) : NodePort ► open 2 browsers , one for VOTING and one for Results.
+--> http://18.138.255.146:31000
+http://18.138.255.146:31001
+
+
+7. try voting and see the results paralelly in results page.
+--> observerd votings cats : 25%
+Dogs : 75%
+
+
+8. Now try to delete the Pods one by one (first voting Pod, then worker pod, then db pod) and see what happens to the voting and result app after deleting
+
+
+[root@ip-172-31-28-253 k8s-specifications]# kubectl get svc
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+db           ClusterIP   10.105.120.228   <none>        5432/TCP         33m
+kubernetes   ClusterIP   10.96.0.1        <none>        443/TCP          39m
+redis        ClusterIP   10.101.76.212    <none>        6379/TCP         33m
+result       NodePort    10.102.224.23    <none>        5001:31001/TCP   33m
+vote         NodePort    10.99.110.6      <none>        5000:31000/TCP   33m
+
+[root@ip-172-31-28-253 k8s-specifications]# kubectl delete po vote-94849dc97-r25mx
+pod "vote-94849dc97-r25mx" deleted
+
+
+9. Write your observations in a text file.
+Result:
+ both applications are working fine. One can vote for only one animal.
+
+10. what happens after db pod deletion. 
+  after deleting voting pod both the applications are working fine.
+  [root@ip-172-31-28-253 k8s-specifications]# kubectl delete po vote-94849dc97-r25mx
+  pod "vote-94849dc97-r25mx" deleted
+  
+  and one thing I noticed that deleting the db pod is resulting as both the applications are abruptly stopped because it was expecting the input from the db pod
+
+  [root@ip-172-31-28-253 k8s-specifications]# kubectl delete po db-b54cd94f4-zd956
+  pod "db-b54cd94f4-zd956" deleted
+  
+  After deleting DB pod we will lose all the data in that db but the db pod will be restarted because of REPLICASET
+but now the result app will not work because it will be expecting the input from the db which has hot deleted and fpr that we have to delete the result app so that it restarts and connect tp new db pod.
+
+  to run the application again. we have to delete the result pod again so that it will create the result service again.
+  [root@ip-172-31-28-253 k8s-specifications]# kubectl delete po result-5d57b59f4b-f97d7
+  pod "result-5d57b59f4b-f97d7" deleted
+
